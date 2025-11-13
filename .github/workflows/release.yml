@@ -1,0 +1,78 @@
+name: Release
+
+on:
+  push:
+    tags:
+      - 'v*.*.*'
+
+env:
+  DOTNET_VERSION: '8.0.x'
+
+jobs:
+  create-release:
+    name: Create Release
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    
+    steps:
+    - name: 📥 Checkout code
+      uses: actions/checkout@v4
+    
+    - name: 🔧 Setup .NET
+      uses: actions/setup-dotnet@v4
+      with:
+        dotnet-version: ${{ env.DOTNET_VERSION }}
+    
+    - name: 📦 Build and Publish
+      run: |
+        dotnet restore TodoBlazorApp.sln
+        dotnet build TodoBlazorApp.sln -c Release
+        
+        dotnet publish src/Presentation/TodoBlazorApp.API/TodoBlazorApp.API.csproj \
+          -c Release -o ./publish/api
+        
+        dotnet publish src/Presentation/TodoBlazorApp.BlazorUI/TodoBlazorApp.BlazorUI.csproj \
+          -c Release -o ./publish/ui
+    
+    - name: 📦 Create release archives
+      run: |
+        cd publish
+        tar -czf TodoBlazorApp-API-${{ github.ref_name }}.tar.gz api/
+        tar -czf TodoBlazorApp-UI-${{ github.ref_name }}.tar.gz ui/
+        zip -r TodoBlazorApp-Complete-${{ github.ref_name }}.zip api/ ui/
+    
+    - name: 📝 Generate Release Notes
+      id: release_notes
+      run: |
+        echo "## 📦 Release ${{ github.ref_name }}" > RELEASE_NOTES.md
+        echo "" >> RELEASE_NOTES.md
+        echo "### ✨ What's New" >> RELEASE_NOTES.md
+        echo "- Full release of Todo App with Clean Architecture" >> RELEASE_NOTES.md
+        echo "- ASP.NET Core 8.0 API with Swagger" >> RELEASE_NOTES.md
+        echo "- Blazor Server UI with RTL support" >> RELEASE_NOTES.md
+        echo "" >> RELEASE_NOTES.md
+        echo "### 📋 Installation" >> RELEASE_NOTES.md
+        echo "\`\`\`bash" >> RELEASE_NOTES.md
+        echo "# Extract the archive" >> RELEASE_NOTES.md
+        echo "tar -xzf TodoBlazorApp-Complete-${{ github.ref_name }}.zip" >> RELEASE_NOTES.md
+        echo "" >> RELEASE_NOTES.md
+        echo "# Run API" >> RELEASE_NOTES.md
+        echo "cd api && dotnet TodoBlazorApp.API.dll" >> RELEASE_NOTES.md
+        echo "" >> RELEASE_NOTES.md
+        echo "# Run UI (in another terminal)" >> RELEASE_NOTES.md
+        echo "cd ui && dotnet TodoBlazorApp.BlazorUI.dll" >> RELEASE_NOTES.md
+        echo "\`\`\`" >> RELEASE_NOTES.md
+    
+    - name: 🎉 Create GitHub Release
+      uses: softprops/action-gh-release@v1
+      with:
+        files: |
+          publish/*.tar.gz
+          publish/*.zip
+        body_path: RELEASE_NOTES.md
+        draft: false
+        prerelease: false
+        generate_release_notes: true
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

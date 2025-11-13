@@ -1,0 +1,76 @@
+version: '3.9'
+
+services:
+  todoapp-api:
+    image: todoapp-api:latest
+    container_name: todoapp-api
+    build:
+      context: .
+      dockerfile: docker/Dockerfile.api
+    ports:
+      - "7000:80"
+      - "7001:443"
+    environment:
+      - ASPNETCORE_ENVIRONMENT=Production
+      - ASPNETCORE_URLS=http://+:80
+      - ConnectionStrings__DefaultConnection=Data Source=/app/data/todoapp.db;Cache=Shared
+    volumes:
+      - todoapp-data:/app/data
+      - todoapp-logs:/app/logs
+    networks:
+      - todoapp-network
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost/api/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+
+  todoapp-ui:
+    image: todoapp-ui:latest
+    container_name: todoapp-ui
+    build:
+      context: .
+      dockerfile: docker/Dockerfile.ui
+    ports:
+      - "5000:80"
+      - "5001:443"
+    environment:
+      - ASPNETCORE_ENVIRONMENT=Production
+      - ASPNETCORE_URLS=http://+:80
+      - ApiSettings__BaseUrl=http://todoapp-api:80/
+    depends_on:
+      todoapp-api:
+        condition: service_healthy
+    networks:
+      - todoapp-network
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost/"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+
+volumes:
+  todoapp-data:
+    driver: local
+    driver_opts:
+      type: none
+      o: bind
+      device: ./data
+
+  todoapp-logs:
+    driver: local
+    driver_opts:
+      type: none
+      o: bind
+      device: ./logs
+
+networks:
+  todoapp-network:
+    driver: bridge
+    ipam:
+      config:
+        - subnet: 172.20.0.0/16

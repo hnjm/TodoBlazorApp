@@ -1,0 +1,861 @@
+@page "/todos"
+@using TodoBlazorApp.Application.DTOs
+@using TodoBlazorApp.Domain.Enums
+@using TodoBlazorApp.BlazorUI.Services
+@inject ITodoApiService TodoApi
+@inject ILogger<Todos> Logger
+@inject IJSRuntime JS
+
+<PageTitle>المهام - نظام إدارة المهام</PageTitle>
+
+<div class="container-fluid py-4" dir="rtl">
+    <!-- Header -->
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <div>
+            <h1 class="mb-0">
+                <i class="bi bi-list-check text-primary"></i> إدارة المهام
+            </h1>
+            <small class="text-muted">Clean Architecture | CQRS | MediatR</small>
+        </div>
+        <div>
+            <button class="btn btn-outline-secondary me-2" @onclick="LoadData">
+                <i class="bi bi-arrow-clockwise"></i> تحديث
+            </button>
+            <button class="btn btn-success" @onclick="ShowAddDialog">
+                <i class="bi bi-plus-circle"></i> إضافة مهمة
+            </button>
+        </div>
+    </div>
+
+    @if (isLoading)
+    {
+        <div class="text-center py-5">
+            <div class="spinner-border text-primary" role="status" style="width: 3rem; height: 3rem;">
+                <span class="visually-hidden">جاري التحميل...</span>
+            </div>
+            <p class="mt-3 text-muted">جاري تحميل البيانات...</p>
+        </div>
+    }
+    else if (!string.IsNullOrEmpty(errorMessage))
+    {
+        <div class="alert alert-danger alert-dismissible fade show" role="alert">
+            <i class="bi bi-exclamation-triangle-fill"></i>
+            <strong>خطأ!</strong> @errorMessage
+            <button type="button" class="btn-close" @onclick="() => errorMessage = null"></button>
+        </div>
+        <div class="text-center py-4">
+            <button class="btn btn-primary" @onclick="LoadData">
+                <i class="bi bi-arrow-clockwise"></i> إعادة المحاولة
+            </button>
+        </div>
+    }
+    else
+    {
+        <!-- Statistics Cards -->
+        <div class="row g-3 mb-4">
+            <div class="col-md-3">
+                <div class="card border-0 shadow-sm h-100">
+                    <div class="card-body text-center">
+                        <i class="bi bi-list-ul fs-1 text-primary mb-2"></i>
+                        <h6 class="text-muted mb-1">إجمالي المهام</h6>
+                        <h2 class="mb-0 text-primary fw-bold">@stats.TotalCount</h2>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-3">
+                <div class="card border-0 shadow-sm h-100">
+                    <div class="card-body text-center">
+                        <i class="bi bi-check-circle fs-1 text-success mb-2"></i>
+                        <h6 class="text-muted mb-1">المكتملة</h6>
+                        <h2 class="mb-0 text-success fw-bold">@stats.CompletedCount</h2>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-3">
+                <div class="card border-0 shadow-sm h-100">
+                    <div class="card-body text-center">
+                        <i class="bi bi-hourglass-split fs-1 text-warning mb-2"></i>
+                        <h6 class="text-muted mb-1">قيد التنفيذ</h6>
+                        <h2 class="mb-0 text-warning fw-bold">@stats.PendingCount</h2>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-3">
+                <div class="card border-0 shadow-sm h-100">
+                    <div class="card-body text-center">
+                        <i class="bi bi-exclamation-triangle fs-1 text-danger mb-2"></i>
+                        <h6 class="text-muted mb-1">متأخرة</h6>
+                        <h2 class="mb-0 text-danger fw-bold">@stats.OverdueCount</h2>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Progress Bar -->
+        @if (stats.TotalCount > 0)
+        {
+            <div class="card border-0 shadow-sm mb-4">
+                <div class="card-body">
+                    <div class="d-flex justify-content-between align-items-center mb-2">
+                        <span class="fw-bold">نسبة الإنجاز</span>
+                        <span class="badge bg-primary">@stats.CompletionPercentage.ToString("F1")%</span>
+                    </div>
+                    <div class="progress" style="height: 25px;">
+                        <div class="progress-bar bg-success" role="progressbar" 
+                             style="width: @stats.CompletionPercentage%"
+                             aria-valuenow="@stats.CompletionPercentage" 
+                             aria-valuemin="0" aria-valuemax="100">
+                            @stats.CompletionPercentage.ToString("F1")%
+                        </div>
+                    </div>
+                </div>
+            </div>
+        }
+
+        <!-- Filters -->
+        <div class="card border-0 shadow-sm mb-4">
+            <div class="card-body">
+                <div class="row g-3 align-items-end">
+                    <div class="col-md-3">
+                        <label class="form-label fw-bold">الحالة</label>
+                        <select class="form-select" @onchange="FilterChanged">
+                            <option value="all">جميع المهام (@todos.Count)</option>
+                            <option value="pending">قيد التنفيذ (@stats.PendingCount)</option>
+                            <option value="completed">مكتملة (@stats.CompletedCount)</option>
+                            <option value="overdue">متأخرة (@stats.OverdueCount)</option>
+                        </select>
+                    </div>
+                    <div class="col-md-3">
+                        <label class="form-label fw-bold">الأولوية</label>
+                        <select class="form-select" @onchange="FilterByPriority">
+                            <option value="">جميع الأولويات</option>
+                            <option value="@((int)Priority.Urgent)">عاجلة</option>
+                            <option value="@((int)Priority.High)">عالية</option>
+                            <option value="@((int)Priority.Medium)">متوسطة</option>
+                            <option value="@((int)Priority.Low)">منخفضة</option>
+                        </select>
+                    </div>
+                    <div class="col-md-4">
+                        <label class="form-label fw-bold">البحث</label>
+                        <input type="text" class="form-control" placeholder="ابحث في المهام..."
+                               @bind="searchText" @bind:event="oninput" @onkeyup="SearchTodos" />
+                    </div>
+                    <div class="col-md-2">
+                        <button class="btn btn-outline-secondary w-100" @onclick="ClearFilters">
+                            <i class="bi bi-x-circle"></i> مسح الفلاتر
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Todo List -->
+        @if (filteredTodos.Any())
+        {
+            <div class="row g-3">
+                @foreach (var todo in filteredTodos)
+                {
+                    <div class="col-md-6 col-lg-4">
+                        <div class="card h-100 border-0 shadow-sm @GetCardBorderClass(todo)">
+                            <div class="card-body">
+                                <!-- Header -->
+                                <div class="d-flex justify-content-between align-items-start mb-3">
+                                    <div class="flex-grow-1">
+                                        <h5 class="card-title mb-1 @(todo.IsCompleted ? "text-decoration-line-through text-muted" : "")">
+                                            @if (todo.IsCompleted)
+                                            {
+                                                <i class="bi bi-check-circle-fill text-success me-1"></i>
+                                            }
+                                            @todo.Title
+                                        </h5>
+                                        <small class="text-muted">
+                                            <i class="bi bi-person"></i> @todo.CreatedBy
+                                        </small>
+                                    </div>
+                                    <span class="badge @GetPriorityBadgeClass(todo.Priority) ms-2">
+                                        @GetPriorityText(todo.Priority)
+                                    </span>
+                                </div>
+
+                                <!-- Description -->
+                                @if (!string.IsNullOrEmpty(todo.Description))
+                                {
+                                    <p class="card-text text-muted small mb-3">
+                                        @(todo.Description.Length > 100 ? todo.Description.Substring(0, 100) + "..." : todo.Description)
+                                    </p>
+                                }
+
+                                <!-- Metadata -->
+                                <div class="mb-3">
+                                    @if (!string.IsNullOrEmpty(todo.Category))
+                                    {
+                                        <span class="badge bg-secondary me-1 mb-1">
+                                            <i class="bi bi-folder"></i> @todo.Category
+                                        </span>
+                                    }
+                                    @if (!string.IsNullOrEmpty(todo.Tags))
+                                    {
+                                        <span class="badge bg-info me-1 mb-1">
+                                            <i class="bi bi-tags"></i> @todo.Tags
+                                        </span>
+                                    }
+                                    @if (todo.DueDate.HasValue)
+                                    {
+                                        <span class="badge @(todo.IsOverdue ? "bg-danger" : "bg-primary") me-1 mb-1">
+                                            <i class="bi bi-calendar-event"></i>
+                                            @todo.DueDate.Value.ToString("dd/MM/yyyy")
+                                        </span>
+                                    }
+                                    @if (todo.Comments.Any())
+                                    {
+                                        <span class="badge bg-dark me-1 mb-1">
+                                            <i class="bi bi-chat-dots"></i> @todo.Comments.Count
+                                        </span>
+                                    }
+                                </div>
+
+                                <!-- Dates -->
+                                <div class="small text-muted mb-3">
+                                    <div>
+                                        <i class="bi bi-clock"></i>
+                                        أنشئت: @todo.CreatedDate.ToString("dd/MM/yyyy HH:mm")
+                                    </div>
+                                    @if (todo.IsCompleted && todo.CompletedDate.HasValue)
+                                    {
+                                        <div>
+                                            <i class="bi bi-check-circle"></i>
+                                            أكملت: @todo.CompletedDate.Value.ToString("dd/MM/yyyy HH:mm")
+                                        </div>
+                                    }
+                                </div>
+
+                                <!-- Actions -->
+                                <div class="d-grid gap-2">
+                                    <div class="btn-group" role="group">
+                                        <button class="btn btn-sm @(todo.IsCompleted ? "btn-outline-secondary" : "btn-success")"
+                                                @onclick="() => ToggleComplete(todo.Id)"
+                                                title="@(todo.IsCompleted ? "إلغاء الإكمال" : "تم")">
+                                            <i class="bi @(todo.IsCompleted ? "bi-arrow-counterclockwise" : "bi-check-lg")"></i>
+                                        </button>
+                                        <button class="btn btn-sm btn-primary" @onclick="() => ViewDetails(todo)"
+                                                title="التفاصيل">
+                                            <i class="bi bi-eye"></i>
+                                        </button>
+                                        <button class="btn btn-sm btn-warning" @onclick="() => EditTodo(todo)"
+                                                title="تعديل">
+                                            <i class="bi bi-pencil"></i>
+                                        </button>
+                                        <button class="btn btn-sm btn-danger" @onclick="() => ConfirmDelete(todo.Id)"
+                                                title="حذف">
+                                            <i class="bi bi-trash"></i>
+                                        </button>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                }
+            </div>
+        }
+        else
+        {
+            <div class="alert alert-info text-center py-5" role="alert">
+                <i class="bi bi-info-circle fs-1 d-block mb-3"></i>
+                <h5>لا توجد مهام</h5>
+                <p class="mb-0">لم يتم العثور على أي مهام تطابق معايير البحث</p>
+            </div>
+        }
+    }
+</div>
+
+<!-- Add/Edit Modal -->
+@if (showDialog)
+{
+    <div class="modal show d-block" tabindex="-1" style="background-color: rgba(0,0,0,0.5);">
+        <div class="modal-dialog modal-dialog-centered modal-lg">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title">
+                        <i class="bi bi-@(isEditing ? "pencil-square" : "plus-circle")"></i>
+                        @(isEditing ? "تعديل المهمة" : "إضافة مهمة جديدة")
+                    </h5>
+                    <button type="button" class="btn-close" @onclick="CloseDialog"></button>
+                </div>
+                <div class="modal-body">
+                    <div class="row g-3">
+                        <div class="col-12">
+                            <label class="form-label fw-bold">العنوان <span class="text-danger">*</span></label>
+                            <input type="text" class="form-control" @bind="currentTitle"
+                                   placeholder="أدخل عنوان المهمة" maxlength="200" />
+                        </div>
+
+                        <div class="col-12">
+                            <label class="form-label fw-bold">الوصف</label>
+                            <textarea class="form-control" rows="4" @bind="currentDescription"
+                                      placeholder="أدخل وصف المهمة (اختياري)" maxlength="2000"></textarea>
+                        </div>
+
+                        <div class="col-md-6">
+                            <label class="form-label fw-bold">الأولوية <span class="text-danger">*</span></label>
+                            <select class="form-select" @bind="currentPriority">
+                                <option value="@Priority.Low">منخفضة</option>
+                                <option value="@Priority.Medium">متوسطة</option>
+                                <option value="@Priority.High">عالية</option>
+                                <option value="@Priority.Urgent">عاجلة</option>
+                            </select>
+                        </div>
+
+                        <div class="col-md-6">
+                            <label class="form-label fw-bold">التصنيف</label>
+                            <input type="text" class="form-control" @bind="currentCategory"
+                                   placeholder="مثال: عمل، دراسة" list="categories" />
+                            <datalist id="categories">
+                                <option value="تطوير">
+                                <option value="تصميم">
+                                <option value="اختبار">
+                                <option value="DevOps">
+                                <option value="تعليم">
+                            </datalist>
+                        </div>
+
+                        <div class="col-md-6">
+                            <label class="form-label fw-bold">الوسوم</label>
+                            <input type="text" class="form-control" @bind="currentTags"
+                                   placeholder="مثال: مهم، عاجل" />
+                        </div>
+
+                        <div class="col-md-6">
+                            <label class="form-label fw-bold">تاريخ الاستحقاق</label>
+                            <input type="date" class="form-control" @bind="currentDueDate"
+                                   min="@DateTime.Now.ToString("yyyy-MM-dd")" />
+                        </div>
+
+                        <div class="col-md-6">
+                            <label class="form-label fw-bold">الساعات المقدرة</label>
+                            <input type="number" class="form-control" @bind="currentEstimatedHours"
+                                   min="0" placeholder="عدد الساعات" />
+                        </div>
+
+                        @if (isEditing)
+                        {
+                            <div class="col-md-6">
+                                <label class="form-label fw-bold">الساعات الفعلية</label>
+                                <input type="number" class="form-control" @bind="currentActualHours"
+                                       min="0" placeholder="عدد الساعات" />
+                            </div>
+
+                            <div class="col-12">
+                                <div class="form-check form-switch">
+                                    <input class="form-check-input" type="checkbox" @bind="currentIsCompleted" />
+                                    <label class="form-check-label fw-bold">مكتملة</label>
+                                </div>
+                            </div>
+                        }
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" @onclick="CloseDialog">
+                        <i class="bi bi-x-circle"></i> إلغاء
+                    </button>
+                    <button type="button" class="btn btn-primary" @onclick="SaveTodo"
+                            disabled="@string.IsNullOrWhiteSpace(currentTitle)">
+                        <i class="bi bi-save"></i> حفظ
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+}
+
+<!-- Details Modal -->
+@if (showDetailsDialog && selectedTodo != null)
+{
+    <div class="modal show d-block" tabindex="-1" style="background-color: rgba(0,0,0,0.5);">
+        <div class="modal-dialog modal-dialog-centered modal-xl modal-dialog-scrollable">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title">
+                        <i class="bi bi-info-circle"></i> تفاصيل المهمة
+                    </h5>
+                    <button type="button" class="btn-close" @onclick="CloseDetailsDialog"></button>
+                </div>
+                <div class="modal-body">
+                    <div class="row">
+                        <div class="col-md-8">
+                            <h3 class="mb-3">@selectedTodo.Title</h3>
+                            
+                            @if (!string.IsNullOrEmpty(selectedTodo.Description))
+                            {
+                                <div class="mb-4">
+                                    <h6 class="text-muted">الوصف</h6>
+                                    <p>@selectedTodo.Description</p>
+                                </div>
+                            }
+
+                            <!-- Comments Section -->
+                            <div class="mb-4">
+                                <h6 class="text-muted mb-3">
+                                    <i class="bi bi-chat-dots"></i> 
+                                    التعليقات (@selectedTodo.Comments.Count)
+                                </h6>
+                                
+                                @if (selectedTodo.Comments.Any())
+                                {
+                                    <div class="list-group mb-3">
+                                        @foreach (var comment in selectedTodo.Comments.OrderByDescending(c => c.CreatedDate))
+                                        {
+                                            <div class="list-group-item">
+                                                <div class="d-flex justify-content-between">
+                                                    <small class="fw-bold">@comment.CreatedBy</small>
+                                                    <small class="text-muted">@comment.CreatedDate.ToString("dd/MM/yyyy HH:mm")</small>
+                                                </div>
+                                                <p class="mb-0 mt-2">@comment.Content</p>
+                                            </div>
+                                        }
+                                    </div>
+                                }
+
+                                <!-- Add Comment -->
+                                <div class="input-group">
+                                    <input type="text" class="form-control" @bind="newCommentText"
+                                           placeholder="أضف تعليقاً..." @onkeypress="HandleCommentKeyPress" />
+                                    <button class="btn btn-primary" @onclick="AddComment"
+                                            disabled="@string.IsNullOrWhiteSpace(newCommentText)">
+                                        <i class="bi bi-send"></i> إضافة
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="col-md-4">
+                            <div class="card bg-light">
+                                <div class="card-body">
+                                    <h6 class="card-title mb-3">معلومات المهمة</h6>
+                                    
+                                    <div class="mb-3">
+                                        <strong>الحالة:</strong><br/>
+                                        <span class="badge @(selectedTodo.IsCompleted ? "bg-success" : "bg-warning")">
+                                            @(selectedTodo.IsCompleted ? "مكتملة" : "قيد التنفيذ")
+                                        </span>
+                                    </div>
+
+                                    <div class="mb-3">
+                                        <strong>الأولوية:</strong><br/>
+                                        <span class="badge @GetPriorityBadgeClass(selectedTodo.Priority)">
+                                            @GetPriorityText(selectedTodo.Priority)
+                                        </span>
+                                    </div>
+
+                                    @if (!string.IsNullOrEmpty(selectedTodo.Category))
+                                    {
+                                        <div class="mb-3">
+                                            <strong>التصنيف:</strong><br/>
+                                            <span class="badge bg-secondary">@selectedTodo.Category</span>
+                                        </div>
+                                    }
+
+                                    @if (!string.IsNullOrEmpty(selectedTodo.Tags))
+                                    {
+                                        <div class="mb-3">
+                                            <strong>الوسوم:</strong><br/>
+                                            <span class="badge bg-info">@selectedTodo.Tags</span>
+                                        </div>
+                                    }
+
+                                    <div class="mb-3">
+                                        <strong>أنشئت:</strong><br/>
+                                        <small>@selectedTodo.CreatedDate.ToString("dd/MM/yyyy HH:mm")</small><br/>
+                                        <small class="text-muted">بواسطة: @selectedTodo.CreatedBy</small>
+                                    </div>
+
+                                    @if (selectedTodo.IsCompleted && selectedTodo.CompletedDate.HasValue)
+                                    {
+                                        <div class="mb-3">
+                                            <strong>أكملت:</strong><br/>
+                                            <small>@selectedTodo.CompletedDate.Value.ToString("dd/MM/yyyy HH:mm")</small>
+                                        </div>
+                                    }
+
+                                    @if (selectedTodo.DueDate.HasValue)
+                                    {
+                                        <div class="mb-3">
+                                            <strong>تاريخ الاستحقاق:</strong><br/>
+                                            <small class="@(selectedTodo.IsOverdue ? "text-danger" : "")">
+                                                @selectedTodo.DueDate.Value.ToString("dd/MM/yyyy")
+                                                @if (selectedTodo.IsOverdue)
+                                                {
+                                                    <span class="badge bg-danger ms-1">متأخرة</span>
+                                                }
+                                            </small>
+                                        </div>
+                                    }
+
+                                    @if (selectedTodo.EstimatedHours.HasValue)
+                                    {
+                                        <div class="mb-3">
+                                            <strong>الساعات المقدرة:</strong> @selectedTodo.EstimatedHours ساعة
+                                        </div>
+                                    }
+
+                                    @if (selectedTodo.ActualHours.HasValue)
+                                    {
+                                        <div class="mb-3">
+                                            <strong>الساعات الفعلية:</strong> @selectedTodo.ActualHours ساعة
+                                        </div>
+                                    }
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" @onclick="CloseDetailsDialog">
+                        <i class="bi bi-x-circle"></i> إغلاق
+                    </button>
+                    <button type="button" class="btn btn-primary" @onclick="() => { CloseDetailsDialog(); EditTodo(selectedTodo); }">
+                        <i class="bi bi-pencil"></i> تعديل
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+}
+
+@code {
+    private List<TodoItemDto> todos = new();
+    private List<TodoItemDto> filteredTodos = new();
+    private TodoStatsDto stats = new();
+    private TodoItemDto? selectedTodo;
+    
+    private bool showDialog = false;
+    private bool showDetailsDialog = false;
+    private bool isEditing = false;
+    private bool isLoading = true;
+    private string? errorMessage;
+    private string currentFilter = "all";
+    private string searchText = "";
+    private int? selectedPriority = null;
+    private string newCommentText = "";
+
+    // Form fields
+    private int currentId;
+    private string currentTitle = "";
+    private string? currentDescription;
+    private Priority currentPriority = Priority.Medium;
+    private string? currentCategory;
+    private string? currentTags;
+    private DateTime? currentDueDate;
+    private string? currentAssignedTo;
+    private int? currentEstimatedHours;
+    private int? currentActualHours;
+    private bool currentIsCompleted;
+
+    protected override async Task OnInitializedAsync()
+    {
+        await LoadData();
+    }
+
+    private async Task LoadData()
+    {
+        try
+        {
+            isLoading = true;
+            errorMessage = null;
+            StateHasChanged();
+
+            todos = (await TodoApi.GetAllAsync(includeDetails: false)).ToList();
+            stats = await TodoApi.GetStatsAsync();
+            
+            ApplyFilters();
+        }
+        catch (Exception ex)
+        {
+            Logger.LogError(ex, "Error loading data");
+            errorMessage = "فشل تحميل البيانات. يرجى التأكد من تشغيل API على المنفذ الصحيح.";
+        }
+        finally
+        {
+            isLoading = false;
+        }
+    }
+
+    private void ApplyFilters()
+    {
+        var filtered = todos.AsEnumerable();
+
+        // Filter by status
+        filtered = currentFilter switch
+        {
+            "completed" => filtered.Where(t => t.IsCompleted),
+            "pending" => filtered.Where(t => !t.IsCompleted),
+            "overdue" => filtered.Where(t => t.IsOverdue),
+            _ => filtered
+        };
+
+        // Filter by priority
+        if (selectedPriority.HasValue)
+        {
+            filtered = filtered.Where(t => (int)t.Priority == selectedPriority.Value);
+        }
+
+        // Search
+        if (!string.IsNullOrWhiteSpace(searchText))
+        {
+            filtered = filtered.Where(t =>
+                t.Title.Contains(searchText, StringComparison.OrdinalIgnoreCase) ||
+                (t.Description?.Contains(searchText, StringComparison.OrdinalIgnoreCase) ?? false) ||
+                (t.Category?.Contains(searchText, StringComparison.OrdinalIgnoreCase) ?? false));
+        }
+
+        filteredTodos = filtered.ToList();
+    }
+
+    private void FilterChanged(ChangeEventArgs e)
+    {
+        currentFilter = e.Value?.ToString() ?? "all";
+        ApplyFilters();
+    }
+
+    private void FilterByPriority(ChangeEventArgs e)
+    {
+        var value = e.Value?.ToString();
+        selectedPriority = string.IsNullOrEmpty(value) ? null : int.Parse(value);
+        ApplyFilters();
+    }
+
+    private void SearchTodos()
+    {
+        ApplyFilters();
+    }
+
+    private void ClearFilters()
+    {
+        currentFilter = "all";
+        selectedPriority = null;
+        searchText = "";
+        ApplyFilters();
+    }
+
+    private void ShowAddDialog()
+    {
+        ResetForm();
+        isEditing = false;
+        showDialog = true;
+    }
+
+    private void EditTodo(TodoItemDto todo)
+    {
+        currentId = todo.Id;
+        currentTitle = todo.Title;
+        currentDescription = todo.Description;
+        currentPriority = todo.Priority;
+        currentCategory = todo.Category;
+        currentTags = todo.Tags;
+        currentDueDate = todo.DueDate;
+        currentAssignedTo = todo.AssignedTo;
+        currentEstimatedHours = todo.EstimatedHours;
+        currentActualHours = todo.ActualHours;
+        currentIsCompleted = todo.IsCompleted;
+
+        isEditing = true;
+        showDialog = true;
+    }
+
+    private async Task ViewDetails(TodoItemDto todo)
+    {
+        try
+        {
+            selectedTodo = await TodoApi.GetByIdAsync(todo.Id, includeDetails: true);
+            showDetailsDialog = true;
+        }
+        catch (Exception ex)
+        {
+            Logger.LogError(ex, "Error loading todo details");
+            errorMessage = "فشل تحميل تفاصيل المهمة";
+        }
+    }
+
+    private async Task SaveTodo()
+    {
+        if (string.IsNullOrWhiteSpace(currentTitle))
+        {
+            await JS.InvokeVoidAsync("alert", "العنوان مطلوب");
+            return;
+        }
+
+        try
+        {
+            if (isEditing)
+            {
+                var updateDto = new UpdateTodoItemDto
+                {
+                    Id = currentId,
+                    Title = currentTitle,
+                    Description = currentDescription,
+                    Priority = currentPriority,
+                    Category = currentCategory,
+                    Tags = currentTags,
+                    DueDate = currentDueDate,
+                    AssignedTo = currentAssignedTo,
+                    EstimatedHours = currentEstimatedHours,
+                    ActualHours = currentActualHours,
+                    IsCompleted = currentIsCompleted
+                };
+                await TodoApi.UpdateAsync(currentId, updateDto);
+            }
+            else
+            {
+                var createDto = new CreateTodoItemDto
+                {
+                    Title = currentTitle,
+                    Description = currentDescription,
+                    Priority = currentPriority,
+                    Category = currentCategory,
+                    Tags = currentTags,
+                    DueDate = currentDueDate,
+                    AssignedTo = currentAssignedTo,
+                    EstimatedHours = currentEstimatedHours
+                };
+                await TodoApi.CreateAsync(createDto);
+            }
+
+            CloseDialog();
+            await LoadData();
+        }
+        catch (Exception ex)
+        {
+            Logger.LogError(ex, "Error saving todo");
+            errorMessage = $"فشل حفظ المهمة: {ex.Message}";
+        }
+    }
+
+    private async Task ToggleComplete(int id)
+    {
+        try
+        {
+            await TodoApi.ToggleCompleteAsync(id);
+            await LoadData();
+        }
+        catch (Exception ex)
+        {
+            Logger.LogError(ex, "Error toggling todo");
+            errorMessage = "فشل تحديث حالة المهمة";
+        }
+    }
+
+    private async Task ConfirmDelete(int id)
+    {
+        var confirmed = await JS.InvokeAsync<bool>("confirm", "هل أنت متأكد من حذف هذه المهمة؟");
+        if (confirmed)
+        {
+            await DeleteTodo(id);
+        }
+    }
+
+    private async Task DeleteTodo(int id)
+    {
+        try
+        {
+            await TodoApi.DeleteAsync(id);
+            await LoadData();
+        }
+        catch (Exception ex)
+        {
+            Logger.LogError(ex, "Error deleting todo");
+            errorMessage = "فشل حذف المهمة";
+        }
+    }
+
+    private async Task AddComment()
+    {
+        if (string.IsNullOrWhiteSpace(newCommentText) || selectedTodo == null) return;
+
+        try
+        {
+            var commentDto = new CreateTodoCommentDto
+            {
+                TodoItemId = selectedTodo.Id,
+                Content = newCommentText
+            };
+
+            await TodoApi.AddCommentAsync(selectedTodo.Id, commentDto);
+            
+            // Reload details
+            selectedTodo = await TodoApi.GetByIdAsync(selectedTodo.Id, includeDetails: true);
+            newCommentText = "";
+            
+            StateHasChanged();
+        }
+        catch (Exception ex)
+        {
+            Logger.LogError(ex, "Error adding comment");
+            errorMessage = "فشل إضافة التعليق";
+        }
+    }
+
+    private async Task HandleCommentKeyPress(KeyboardEventArgs e)
+    {
+        if (e.Key == "Enter")
+        {
+            await AddComment();
+        }
+    }
+
+    private void CloseDialog()
+    {
+        showDialog = false;
+        ResetForm();
+    }
+
+    private void CloseDetailsDialog()
+    {
+        showDetailsDialog = false;
+        selectedTodo = null;
+        newCommentText = "";
+    }
+
+    private void ResetForm()
+    {
+        currentId = 0;
+        currentTitle = "";
+        currentDescription = null;
+        currentPriority = Priority.Medium;
+        currentCategory = null;
+        currentTags = null;
+        currentDueDate = null;
+        currentAssignedTo = null;
+        currentEstimatedHours = null;
+        currentActualHours = null;
+        currentIsCompleted = false;
+    }
+
+    private string GetPriorityText(Priority priority) => priority switch
+    {
+        Priority.Low => "منخفضة",
+        Priority.Medium => "متوسطة",
+        Priority.High => "عالية",
+        Priority.Urgent => "عاجلة",
+        _ => "غير محدد"
+    };
+
+    private string GetPriorityBadgeClass(Priority priority) => priority switch
+    {
+        Priority.Urgent => "bg-danger",
+        Priority.High => "bg-warning text-dark",
+        Priority.Medium => "bg-info text-dark",
+        Priority.Low => "bg-secondary",
+        _ => "bg-secondary"
+    };
+
+    private string GetCardBorderClass(TodoItemDto todo)
+    {
+        if (todo.IsCompleted) return "border-success border-2";
+        if (todo.IsOverdue) return "border-danger border-2";
+        return todo.Priority switch
+        {
+            Priority.Urgent => "border-danger border-2",
+            Priority.High => "border-warning border-2",
+            _ => ""
+        };
+    }
+}

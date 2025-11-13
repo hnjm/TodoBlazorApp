@@ -1,0 +1,75 @@
+Microsoft Visual Studio Solution File, Format Version 12.00
+# Visual Studio Version 17
+VisualStudioVersion = 17.8.34316.72
+MinimumVisualStudioVersion = 10.0.40219.1
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "src", "src", "{A1234567-B89C-0123-4567-89ABCDEF0123}"
+EndProject
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "tests", "tests", "{B2345678-C90D-1234-5678-90ABCDEF1234}"
+EndProject
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Core", "Core", "{C3456789-D01E-2345-6789-01BCDEF23456}"
+EndProject
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Infrastructure", "Infrastructure", "{D4567890-E12F-3456-7890-12CDEF345678}"
+EndProject
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Presentation", "Presentation", "{E5678901-F234-4567-8901-23DEF4567890}"
+EndProject
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "TodoBlazorApp.Domain", "src\Core\TodoBlazorApp.Domain\TodoBlazorApp.Domain.csproj", "{F6789012-0345-5678-9012-34EF56789012}"
+EndProject
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "TodoBlazorApp.Application", "src\Core\TodoBlazorApp.Application\TodoBlazorApp.Application.csproj", "{06789123-1456-6789-0123-45F678901234}"
+EndProject
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "TodoBlazorApp.Infrastructure", "src\Infrastructure\TodoBlazorApp.Infrastructure\TodoBlazorApp.Infrastructure.csproj", "{16789234-2567-7890-1234-560789012345}"
+EndProject
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "TodoBlazorApp.API", "src\Presentation\TodoBlazorApp.API\TodoBlazorApp.API.csproj", "{16AA3338-B229-4554-BDBB-70C49D9B87DF}"
+EndProject
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "TodoBlazorApp.BlazorUI", "src\Presentation\TodoBlazorApp.BlazorUI\TodoBlazorApp.BlazorUI.csproj", "{B77CE05A-0B10-4E44-A10D-703F03E26427}"
+EndProject
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Solution Items", "Solution Items", "{B001F91F-D6D7-4F83-B07B-1FD9F34F10B6}"
+	ProjectSection(SolutionItems) = preProject
+		.gitignore = .gitignore
+		azure-pipelines.yml = azure-pipelines.yml
+		docker-compose.yml = docker-compose.yml
+		Jenkinsfile = Jenkinsfile
+		README.md = README.md
+	EndProjectSection
+EndProject
+Global
+	GlobalSection(SolutionConfigurationPlatforms) = preSolution
+		Debug|Any CPU = Debug|Any CPU
+		Release|Any CPU = Release|Any CPU
+	EndGlobalSection
+	GlobalSection(ProjectConfigurationPlatforms) = postSolution
+		{F6789012-0345-5678-9012-34EF56789012}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{F6789012-0345-5678-9012-34EF56789012}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{F6789012-0345-5678-9012-34EF56789012}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{F6789012-0345-5678-9012-34EF56789012}.Release|Any CPU.Build.0 = Release|Any CPU
+		{06789123-1456-6789-0123-45F678901234}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{06789123-1456-6789-0123-45F678901234}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{06789123-1456-6789-0123-45F678901234}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{06789123-1456-6789-0123-45F678901234}.Release|Any CPU.Build.0 = Release|Any CPU
+		{16789234-2567-7890-1234-560789012345}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{16789234-2567-7890-1234-560789012345}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{16789234-2567-7890-1234-560789012345}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{16789234-2567-7890-1234-560789012345}.Release|Any CPU.Build.0 = Release|Any CPU
+		{16AA3338-B229-4554-BDBB-70C49D9B87DF}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{16AA3338-B229-4554-BDBB-70C49D9B87DF}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{16AA3338-B229-4554-BDBB-70C49D9B87DF}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{16AA3338-B229-4554-BDBB-70C49D9B87DF}.Release|Any CPU.Build.0 = Release|Any CPU
+		{B77CE05A-0B10-4E44-A10D-703F03E26427}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{B77CE05A-0B10-4E44-A10D-703F03E26427}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{B77CE05A-0B10-4E44-A10D-703F03E26427}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{B77CE05A-0B10-4E44-A10D-703F03E26427}.Release|Any CPU.Build.0 = Release|Any CPU
+	EndGlobalSection
+	GlobalSection(SolutionProperties) = preSolution
+		HideSolutionNode = FALSE
+	EndGlobalSection
+	GlobalSection(NestedProjects) = preSolution
+		{C3456789-D01E-2345-6789-01BCDEF23456} = {A1234567-B89C-0123-4567-89ABCDEF0123}
+		{D4567890-E12F-3456-7890-12CDEF345678} = {A1234567-B89C-0123-4567-89ABCDEF0123}
+		{E5678901-F234-4567-8901-23DEF4567890} = {A1234567-B89C-0123-4567-89ABCDEF0123}
+		{F6789012-0345-5678-9012-34EF56789012} = {C3456789-D01E-2345-6789-01BCDEF23456}
+		{06789123-1456-6789-0123-45F678901234} = {C3456789-D01E-2345-6789-01BCDEF23456}
+		{16789234-2567-7890-1234-560789012345} = {D4567890-E12F-3456-7890-12CDEF345678}
+	EndGlobalSection
+	GlobalSection(ExtensibilityGlobals) = postSolution
+		SolutionGuid = {56789678-6901-1234-5678-90123456789012}
+	EndGlobalSection
+EndGlobal

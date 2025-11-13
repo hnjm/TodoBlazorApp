@@ -1,0 +1,212 @@
+trigger:
+  branches:
+    include:
+    - main
+    - develop
+  paths:
+    include:
+    - src/**
+    - tests/**
+
+variables:
+  buildConfiguration: 'Release'
+  dotnetVersion: '8.0.x'
+  projectName: 'TodoBlazorApp'
+  majorVersion: 1
+  minorVersion: 0
+    - azure-pipelines.yml
+
+pr:
+  branches:
+    include:
+    - main
+    - develop
+  patchVersion: $(Build.BuildId)
+  semanticVersion: '$(majorVersion).$(minorVersion).$(patchVersion)'
+
+stages:
+- stage: Build
+  displayName: 'مرحلة البناء والاختبار'
+  jobs:
+  - job: BuildJob
+    displayName: 'بناء المشروع'
+    pool:
+      vmImage: 'ubuntu-latest'
+    
+    steps:
+    - task: UseDotNet@2
+      displayName: '🔧 تثبيت .NET SDK'
+      inputs:
+        packageType: 'sdk'
+        version: $(dotnetVersion)
+    
+    - task: DotNetCoreCLI@2
+      displayName: '📦 استعادة الحزم'
+      inputs:
+        command: 'restore'
+        projects: '$(projectName).sln'
+    
+    - task: DotNetCoreCLI@2
+      displayName: '🔨 بناء المشروع'
+      inputs:
+        command: 'build'
+        projects: '$(projectName).sln'
+        arguments: '--configuration $(buildConfiguration) --no-restore /p:Version=$(semanticVersion)'
+    
+    - task: DotNetCoreCLI@2
+      displayName: '🧪 تشغيل الاختبارات'
+      inputs:
+        command: 'test'
+        projects: '**/tests/**/*.csproj'
+        arguments: '--configuration $(buildConfiguration) --no-build --collect:"XPlat Code Coverage"'
+      continueOnError: true
+    
+    - task: PublishCodeCoverageResults@1
+      displayName: '📊 نشر نتائج التغطية'
+      inputs:
+        codeCoverageTool: 'Cobertura'
+        summaryFileLocation: '$(Agent.TempDirectory)/**/*coverage.cobertura.xml'
+      condition: succeededOrFailed()
+    
+    - task: DotNetCoreCLI@2
+      displayName: '📦 نشر API'
+      inputs:
+        command: 'publish'
+        publishWebProjects: false
+        projects: 'src/Presentation/TodoBlazorApp.API/TodoBlazorApp.API.csproj'
+        arguments: '--configuration $(buildConfiguration) --output $(Build.ArtifactStagingDirectory)/api --no-build /p:Version=$(semanticVersion)'
+        zipAfterPublish: true
+    
+    - task: DotNetCoreCLI@2
+      displayName: '📦 نشر Blazor UI'
+      inputs:
+        command: 'publish'
+        publishWebProjects: false
+        projects: 'src/Presentation/TodoBlazorApp.BlazorUI/TodoBlazorApp.BlazorUI.csproj'
+        arguments: '--configuration $(buildConfiguration) --output $(Build.ArtifactStagingDirectory)/ui --no-build /p:Version=$(semanticVersion)'
+        zipAfterPublish: true
+    
+    - task: CopyFiles@2
+      displayName: '📋 نسخ السكريبتات'
+      inputs:
+        SourceFolder: 'scripts'
+        Contents: '**'
+        TargetFolder: '$(Build.ArtifactStagingDirectory)/scripts'
+    
+    - task: PublishBuildArtifacts@1
+      displayName: '📚 نشر Artifacts'
+      inputs:
+        PathtoPublish: '$(Build.ArtifactStagingDirectory)'
+        ArtifactName: 'drop'
+        publishLocation: 'Container'
+
+- stage: DeployDev
+  displayName: 'النشر على بيئة التطوير'
+  dependsOn: Build
+  condition: and(succeeded(), eq(variables['Build.SourceBranch'], 'refs/heads/develop'))
+  jobs:
+  - deployment: DeployDevJob
+    displayName: 'نشر على Dev'
+    pool:
+      vmImage: 'ubuntu-latest'
+    environment: 'Development'
+    strategy:
+      runOnce:
+        deploy:
+          steps:
+          - task: DownloadBuildArtifacts@0
+            displayName: '📥 تحميل Artifacts'
+            inputs:
+              buildType: 'current'
+              downloadType: 'single'
+              artifactName: 'drop'
+              downloadPath: '$(System.ArtifactsDirectory)'
+          
+          - task: ExtractFiles@1
+            displayName: '📂 استخراج API'
+            inputs:
+              archiveFilePatterns: '$(System.ArtifactsDirectory)/drop/api/*.zip'
+              destinationFolder: '$(System.ArtifactsDirectory)/extracted/api'
+          
+          - task: ExtractFiles@1
+            displayName: '📂 استخراج UI'
+            inputs:
+              archiveFilePatterns: '$(System.ArtifactsDirectory)/drop/ui/*.zip'
+              destinationFolder: '$(System.ArtifactsDirectory)/extracted/ui'
+          
+          - task: Bash@3
+            displayName: '🚀 نشر التطبيق'
+            inputs:
+              targetType: 'inline'
+              script: |
+                echo "🚀 النشر على بيئة التطوير..."
+                echo "API Path: $(System.ArtifactsDirectory)/extracted/api"
+                echo "UI Path: $(System.ArtifactsDirectory)/extracted/ui"
+                # أضف أوامر النشر الفعلية هنا
+
+- stage: DeployStaging
+  displayName: 'النشر على بيئة التجريب'
+  dependsOn: Build
+  condition: and(succeeded(), eq(variables['Build.SourceBranch'], 'refs/heads/main'))
+  jobs:
+  - deployment: DeployStagingJob
+    displayName: 'نشر على Staging'
+    pool:
+      vmImage: 'ubuntu-latest'
+    environment: 'Staging'
+    strategy:
+      runOnce:
+        deploy:
+          steps:
+          - task: DownloadBuildArtifacts@0
+            inputs:
+              buildType: 'current'
+              downloadType: 'single'
+              artifactName: 'drop'
+              downloadPath: '$(System.ArtifactsDirectory)'
+          
+          - task: Bash@3
+            displayName: '🚀 نشر على Staging'
+            inputs:
+              targetType: 'inline'
+              script: |
+                echo "🚀 النشر على بيئة التجريب..."
+                # أضف أوامر النشر
+
+- stage: DeployProduction
+  displayName: 'النشر على الإنتاج'
+  dependsOn: DeployStaging
+  condition: succeeded()
+  jobs:
+  - deployment: DeployProductionJob
+    displayName: 'نشر على Production'
+    pool:
+      vmImage: 'ubuntu-latest'
+    environment: 'Production'
+    strategy:
+      runOnce:
+        deploy:
+          steps:
+          - task: DownloadBuildArtifacts@0
+            inputs:
+              buildType: 'current'
+              downloadType: 'single'
+              artifactName: 'drop'
+              downloadPath: '$(System.ArtifactsDirectory)'
+          
+          - task: Bash@3
+            displayName: '🚀 نشر على Production'
+            inputs:
+              targetType: 'inline'
+              script: |
+                echo "🚀 النشر على بيئة الإنتاج..."
+                # أضف أوامر النشر
+          
+          - task: Bash@3
+            displayName: '📢 إرسال إشعار'
+            inputs:
+              targetType: 'inline'
+              script: |
+                echo "✅ تم النشر على الإنتاج بنجاح!"
+                echo "Version: $(semanticVersion)"
+                echo "Build: $(Build.BuildNumber)"

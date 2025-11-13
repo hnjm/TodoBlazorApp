@@ -1,0 +1,240 @@
+name: CI/CD Pipeline
+
+on:
+  push:
+    branches: [ main, develop ]
+  pull_request:
+    branches: [ main, develop ]
+  workflow_dispatch:
+
+env:
+  DOTNET_VERSION: '8.0.x'
+  PROJECT_NAME: 'TodoBlazorApp'
+  REGISTRY: ghcr.io
+  IMAGE_NAME: ${{ github.repository }}
+
+jobs:
+  build-and-test:
+    name: Build and Test
+    runs-on: ubuntu-latest
+    
+    steps:
+    - name: 📥 Checkout code
+      uses: actions/checkout@v4
+      with:
+        fetch-depth: 0
+    
+    - name: 🔧 Setup .NET
+      uses: actions/setup-dotnet@v4
+      with:
+        dotnet-version: ${{ env.DOTNET_VERSION }}
+    
+    - name: 📦 Restore dependencies
+      run: dotnet restore TodoBlazorApp.sln
+    
+    - name: 🔨 Build solution
+      run: dotnet build TodoBlazorApp.sln --configuration Release --no-restore
+    
+    - name: 🧪 Run tests
+      run: |
+        if [ -d "tests" ]; then
+          dotnet test TodoBlazorApp.sln \
+            --configuration Release \
+            --no-build \
+            --verbosity normal \
+            --logger "trx;LogFileName=test-results.trx" \
+            --collect:"XPlat Code Coverage"
+        else
+          echo "No tests found"
+        fi
+    
+    - name: 📊 Upload test results
+      if: always()
+      uses: actions/upload-artifact@v4
+      with:
+        name: test-results
+        path: '**/test-results.trx'
+    
+    - name: 📊 Upload coverage
+      if: always()
+      uses: actions/upload-artifact@v4
+      with:
+        name: coverage
+        path: '**/coverage.cobertura.xml'
+
+  publish-artifacts:
+    name: Publish Artifacts
+    needs: build-and-test
+    runs-on: ubuntu-latest
+    if: github.event_name == 'push'
+    
+    steps:
+    - name: 📥 Checkout code
+      uses: actions/checkout@v4
+    
+    - name: 🔧 Setup .NET
+      uses: actions/setup-dotnet@v4
+      with:
+        dotnet-version: ${{ env.DOTNET_VERSION }}
+    
+    - name: 📦 Restore dependencies
+      run: dotnet restore TodoBlazorApp.sln
+    
+    - name: 🔨 Build solution
+      run: dotnet build TodoBlazorApp.sln --configuration Release --no-restore
+    
+    - name: 📦 Publish API
+      run: |
+        dotnet publish src/Presentation/TodoBlazorApp.API/TodoBlazorApp.API.csproj \
+          -c Release \
+          -o ./publish/api \
+          --no-build \
+          /p:Version=1.0.${{ github.run_number }}
+    
+    - name: 📦 Publish Blazor UI
+      run: |
+        dotnet publish src/Presentation/TodoBlazorApp.BlazorUI/TodoBlazorApp.BlazorUI.csproj \
+          -c Release \
+          -o ./publish/ui \
+          --no-build \
+          /p:Version=1.0.${{ github.run_number }}
+    
+    - name: 📚 Upload API artifact
+      uses: actions/upload-artifact@v4
+      with:
+        name: api-artifact
+        path: ./publish/api
+        retention-days: 30
+    
+    - name: 📚 Upload UI artifact
+      uses: actions/upload-artifact@v4
+      with:
+        name: ui-artifact
+        path: ./publish/ui
+        retention-days: 30
+    
+    - name: 📦 Create release package
+      run: |
+        cd publish
+        tar -czf ${{ env.PROJECT_NAME }}-v1.0.${{ github.run_number }}.tar.gz api/ ui/
+        ls -lh *.tar.gz
+    
+    - name: 📚 Upload release package
+      uses: actions/upload-artifact@v4
+      with:
+        name: release-package
+        path: publish/*.tar.gz
+
+  build-docker:
+    name: Build Docker Images
+    needs: build-and-test
+    runs-on: ubuntu-latest
+    if: github.event_name == 'push'
+    permissions:
+      contents: read
+      packages: write
+    
+    strategy:
+      matrix:
+        include:
+          - service: api
+            dockerfile: ./docker/Dockerfile.api
+            context: .
+          - service: ui
+            dockerfile: ./docker/Dockerfile.ui
+            context: .
+    
+    steps:
+    - name: 📥 Checkout code
+      uses: actions/checkout@v4
+    
+    - name: 🔐 Log in to GitHub Container Registry
+      uses: docker/login-action@v3
+      with:
+        registry: ${{ env.REGISTRY }}
+        username: ${{ github.actor }}
+        password: ${{ secrets.GITHUB_TOKEN }}
+    
+    - name: 🏷️ Extract metadata
+      id: meta
+      uses: docker/metadata-action@v5
+      with:
+        images: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}-${{ matrix.service }}
+        tags: |
+          type=ref,event=branch
+          type=ref,event=pr
+          type=semver,pattern={{version}}
+          type=semver,pattern={{major}}.{{minor}}
+          type=sha,prefix={{branch}}-
+          type=raw,value=latest,enable={{is_default_branch}}
+    
+    - name: 🐳 Build and push Docker image
+      uses: docker/build-push-action@v5
+      with:
+        context: ${{ matrix.context }}
+        file: ${{ matrix.dockerfile }}
+        push: true
+        tags: ${{ steps.meta.outputs.tags }}
+        labels: ${{ steps.meta.outputs.labels }}
+
+  deploy-staging:
+    name: Deploy to Staging
+    needs: [publish-artifacts, build-docker]
+    runs-on: ubuntu-latest
+    if: github.ref == 'refs/heads/develop'
+    environment:
+      name: staging
+      url: https://staging.todoapp.example.com
+    
+    steps:
+    - name: 📥 Download API artifact
+      uses: actions/download-artifact@v4
+      with:
+        name: api-artifact
+        path: ./api
+    
+    - name: 📥 Download UI artifact
+      uses: actions/download-artifact@v4
+      with:
+        name: ui-artifact
+        path: ./ui
+    
+    - name: 🚀 Deploy to staging
+      run: |
+        echo "🚀 Deploying to staging environment..."
+        echo "API files:"
+        ls -la ./api
+        echo "UI files:"
+        ls -la ./ui
+        # أضف أوامر النشر الفعلية هنا
+        # مثال: scp -r ./api user@staging-server:/var/www/todoapp/api
+        # مثال: scp -r ./ui user@staging-server:/var/www/todoapp/ui
+
+  deploy-production:
+    name: Deploy to Production
+    needs: [publish-artifacts, build-docker]
+    runs-on: ubuntu-latest
+    if: github.ref == 'refs/heads/main'
+    environment:
+      name: production
+      url: https://todoapp.example.com
+    
+    steps:
+    - name: 📥 Download release package
+      uses: actions/download-artifact@v4
+      with:
+        name: release-package
+        path: ./release
+    
+    - name: 🚀 Deploy to production
+      run: |
+        echo "🚀 Deploying to production environment..."
+        ls -la ./release
+        # أضف أوامر النشر على الإنتاج
+    
+    - name: 📢 Create GitHub Release
+      if: startsWith(github.ref, 'refs/tags/')
+      uses: softprops/action-gh-release@v1
+      with:
+        files: ./release/*.tar.gz
+        generate_release_notes: true

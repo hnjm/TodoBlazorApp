@@ -1,0 +1,20 @@
+version: '3.9'
+
+services:
+  todoapp-api:
+    environment:
+      - ASPNETCORE_ENVIRONMENT=Development
+      - Database__EnableSensitiveDataLogging=true
+    volumes:
+      - ./src/Presentation/TodoBlazorApp.API:/app/src
+    ports:
+      - "7000:80"
+
+  todoapp-ui:
+    environment:
+      - ASPNETCORE_ENVIRONMENT=Development
+      - DetailedErrors=true
+    volumes:
+      - ./src/Presentation/TodoBlazorApp.BlazorUI:/app/src
+    ports:
+      - "5000:80"

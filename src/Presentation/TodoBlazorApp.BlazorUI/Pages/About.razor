@@ -1,0 +1,145 @@
+@page "/about"
+
+<PageTitle>حول - نظام إدارة المهام</PageTitle>
+
+<div class="container py-5" dir="rtl">
+    <div class="row">
+        <div class="col-lg-8 mx-auto">
+            <h1 class="mb-4 text-center">
+                <i class="bi bi-info-circle text-primary"></i> حول المشروع
+            </h1>
+
+            <div class="card border-0 shadow-sm mb-4">
+                <div class="card-body">
+                    <h4 class="card-title mb-3">نظام إدارة المهام الاحترافي</h4>
+                    <p class="lead">
+                        تطبيق ويب شامل ومتقدم لإدارة المهام مبني باستخدام أحدث التقنيات والممارسات في تطوير البرمجيات.
+                    </p>
+                    <p>
+                        هذا المشروع يوضح تطبيق Clean Architecture مع CQRS Pattern باستخدام MediatR،
+                        ويوفر واجهة برمجية RESTful كاملة مع توثيق Swagger، وواجهة مستخدم تفاعلية باستخدام Blazor Server.
+                    </p>
+                </div>
+            </div>
+
+            <div class="card border-0 shadow-sm mb-4">
+                <div class="card-body">
+                    <h5 class="card-title mb-3">
+                        <i class="bi bi-stack text-primary"></i> التقنيات المستخدمة
+                    </h5>
+                    <div class="row g-3">
+                        <div class="col-md-6">
+                            <ul class="list-unstyled">
+                                <li class="mb-2"><i class="bi bi-check-circle text-success me-2"></i>ASP.NET Core 8.0</li>
+                                <li class="mb-2"><i class="bi bi-check-circle text-success me-2"></i>Blazor Server</li>
+                                <li class="mb-2"><i class="bi bi-check-circle text-success me-2"></i>Entity Framework Core 8</li>
+                                <li class="mb-2"><i class="bi bi-check-circle text-success me-2"></i>SQLite Database</li>
+                                <li class="mb-2"><i class="bi bi-check-circle text-success me-2"></i>MediatR (CQRS)</li>
+                            </ul>
+                        </div>
+                        <div class="col-md-6">
+                            <ul class="list-unstyled">
+                                <li class="mb-2"><i class="bi bi-check-circle text-success me-2"></i>AutoMapper</li>
+                                <li class="mb-2"><i class="bi bi-check-circle text-success me-2"></i>FluentValidation</li>
+                                <li class="mb-2"><i class="bi bi-check-circle text-success me-2"></i>Serilog</li>
+                                <li class="mb-2"><i class="bi bi-check-circle text-success me-2"></i>Swagger/OpenAPI</li>
+                                <li class="mb-2"><i class="bi bi-check-circle text-success me-2"></i>Bootstrap 5</li>
+                            </ul>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="card border-0 shadow-sm mb-4">
+                <div class="card-body">
+                    <h5 class="card-title mb-3">
+                        <i class="bi bi-diagram-3 text-primary"></i> المعمارية (Architecture)
+                    </h5>
+                    <p>المشروع يتبع Clean Architecture مع الطبقات التالية:</p>
+                    <ul>
+                        <li class="mb-2">
+                            <strong>Domain Layer:</strong> الكيانات الأساسية والقواعد التجارية
+                        </li>
+                        <li class="mb-2">
+                            <strong>Application Layer:</strong> منطق الأعمال، MediatR Handlers، DTOs، Validators
+                        </li>
+                        <li class="mb-2">
+                            <strong>Infrastructure Layer:</strong> تطبيق قاعدة البيانات، Repositories، Services
+                        </li>
+                        <li class="mb-2">
+                            <strong>Presentation Layer:</strong> API Controllers و Blazor UI
+                        </li>
+                    </ul>
+                </div>
+            </div>
+
+            <div class="card border-0 shadow-sm mb-4">
+                <div class="card-body">
+                    <h5 class="card-title mb-3">
+                        <i class="bi bi-star text-primary"></i> المميزات الرئيسية
+                    </h5>
+                    <div class="row">
+                        <div class="col-md-6">
+                            <ul>
+                                <li>إدارة كاملة للمهام (CRUD)</li>
+                                <li>تصنيف وتنظيم المهام</li>
+                                <li>نظام الأولويات</li>
+                                <li>التعليقات على المهام</li>
+                                <li>المرفقات</li>
+                            </ul>
+                        </div>
+                        <div class="col-md-6">
+                            <ul>
+                                <li>إحصائيات تفصيلية</li>
+                                <li>تصفية وبحث متقدم</li>
+                                <li>تتبع المهام المتأخرة</li>
+                                <li>واجهة عربية كاملة</li>
+                                <li>Responsive Design</li>
+                            </ul>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="card border-0 shadow-sm mb-4">
+                <div class="card-body">
+                    <h5 class="card-title mb-3">
+                        <i class="bi bi-gear text-primary"></i> CI/CD & DevOps
+                    </h5>
+                    <ul>
+                        <li class="mb-2">Jenkins Pipeline للبناء الآلي</li>
+                        <li class="mb-2">Azure DevOps Pipelines</li>
+                        <li class="mb-2">GitHub Actions Workflows</li>
+                        <li class="mb-2">Docker Support</li>
+                        <li class="mb-2">Automated Testing</li>
+                    </ul>
+                </div>
+            </div>
+
+            <div class="card border-0 shadow-sm">
+                <div class="card-body text-center">
+                    <h5 class="card-title mb-3">المطور</h5>
+                    <div class="mb-3">
+                        <i class="bi bi-person-circle fs-1 text-primary"></i>
+                    </div>
+                    <h4>HNJM</h4>
+                    <p class="text-muted">Full Stack Developer</p>
+                    <div class="d-flex justify-content-center gap-3">
+                        <a href="https://github.com/hnjm" target="_blank" class="btn btn-outline-dark">
+                            <i class="bi bi-github"></i> GitHub
+                        </a>
+                        <a href="mailto:hnjm@example.com" class="btn btn-outline-primary">
+                            <i class="bi bi-envelope"></i> البريد الإلكتروني
+                        </a>
+                    </div>
+                    <hr class="my-4" />
+                    <p class="small text-muted mb-0">
+                        <i class="bi bi-calendar3"></i> تم الإنشاء: نوفمبر 2025<br/>
+                        <i class="bi bi-code-slash"></i> Version: 1.0.0<br/>
+                        <i class="bi bi-shield-check"></i> License: MIT
+                    </p>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>

@@ -1,0 +1,49 @@
+# Stage 1: Build
+FROM mcr.microsoft.com/dotnet/sdk:8.0 AS build
+WORKDIR /src
+
+# Copy solution and project files
+COPY ["TodoBlazorApp.sln", "./"]
+COPY ["src/Core/TodoBlazorApp.Domain/TodoBlazorApp.Domain.csproj", "src/Core/TodoBlazorApp.Domain/"]
+COPY ["src/Core/TodoBlazorApp.Application/TodoBlazorApp.Application.csproj", "src/Core/TodoBlazorApp.Application/"]
+COPY ["src/Presentation/TodoBlazorApp.BlazorUI/TodoBlazorApp.BlazorUI.csproj", "src/Presentation/TodoBlazorApp.BlazorUI/"]
+
+# Restore dependencies
+RUN dotnet restore "src/Presentation/TodoBlazorApp.BlazorUI/TodoBlazorApp.BlazorUI.csproj"
+
+# Copy all source files
+COPY . .
+
+# Build the project
+WORKDIR "/src/src/Presentation/TodoBlazorApp.BlazorUI"
+RUN dotnet build "TodoBlazorApp.BlazorUI.csproj" -c Release -o /app/build
+
+# Stage 2: Publish
+FROM build AS publish
+RUN dotnet publish "TodoBlazorApp.BlazorUI.csproj" -c Release -o /app/publish /p:UseAppHost=false
+
+# Stage 3: Runtime
+FROM mcr.microsoft.com/dotnet/aspnet:8.0 AS final
+WORKDIR /app
+
+# Install curl for health checks
+RUN apt-get update && apt-get install -y curl && rm -rf /var/lib/apt/lists/*
+
+# Copy published files
+COPY --from=publish /app/publish .
+
+# Set environment variables
+ENV ASPNETCORE_URLS=http://+:80
+ENV ASPNETCORE_ENVIRONMENT=Production
+ENV ApiSettings__BaseUrl="http://todoapp-api"
+
+# Expose ports
+EXPOSE 80
+EXPOSE 443
+
+# Health check
+HEALTHCHECK --interval=30s --timeout=3s --start-period=5s --retries=3 \
+  CMD curl -f http://localhost/ || exit 1
+
+# Set entry point
+ENTRYPOINT ["dotnet", "TodoBlazorApp.BlazorUI.dll"]

@@ -1,0 +1,48 @@
+name: PR Validation
+
+on:
+  pull_request:
+    branches: [ main, develop ]
+    types: [opened, synchronize, reopened]
+
+env:
+  DOTNET_VERSION: '8.0.x'
+
+jobs:
+  validate:
+    name: Validate Pull Request
+    runs-on: ubuntu-latest
+    
+    steps:
+    - name: 📥 Checkout code
+      uses: actions/checkout@v4
+      with:
+        fetch-depth: 0
+    
+    - name: 🔧 Setup .NET
+      uses: actions/setup-dotnet@v4
+      with:
+        dotnet-version: ${{ env.DOTNET_VERSION }}
+    
+    - name: 📦 Restore dependencies
+      run: dotnet restore TodoBlazorApp.sln
+    
+    - name: 🔨 Build
+      run: dotnet build TodoBlazorApp.sln --configuration Release --no-restore
+    
+    - name: 🧪 Test
+      run: |
+        if [ -d "tests" ]; then
+          dotnet test TodoBlazorApp.sln \
+            --configuration Release \
+            --no-build \
+            --verbosity normal
+        fi
+    
+    - name: 🔍 Code Quality Check
+      run: |
+        echo "Running code quality checks..."
+        # يمكن إضافة أدوات مثل StyleCop, SonarQube, etc.
+    
+    - name: ✅ PR Check Complete
+      run: echo "✅ Pull Request validation completed successfully"

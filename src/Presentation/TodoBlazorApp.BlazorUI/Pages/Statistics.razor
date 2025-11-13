@@ -1,0 +1,240 @@
+@page "/statistics"
+@using TodoBlazorApp.Application.DTOs
+@using TodoBlazorApp.BlazorUI.Services
+@inject ITodoApiService TodoApi
+@inject ILogger<Statistics> Logger
+
+<PageTitle>الإحصائيات - نظام إدارة المهام</PageTitle>
+
+<div class="container-fluid py-4" dir="rtl">
+    <h1 class="mb-4">
+        <i class="bi bi-bar-chart text-primary"></i> الإحصائيات والتحليلات
+    </h1>
+
+    @if (isLoading)
+    {
+        <div class="text-center py-5">
+            <div class="spinner-border text-primary" role="status" style="width: 3rem; height: 3rem;">
+                <span class="visually-hidden">جاري التحميل...</span>
+            </div>
+        </div>
+    }
+    else if (stats != null)
+    {
+        <!-- Overview Cards -->
+        <div class="row g-4 mb-4">
+            <div class="col-md-3">
+                <div class="card border-0 shadow-sm">
+                    <div class="card-body text-center">
+                        <i class="bi bi-list-ul fs-1 text-primary mb-2"></i>
+                        <h6 class="text-muted">إجمالي المهام</h6>
+                        <h2 class="fw-bold text-primary">@stats.TotalCount</h2>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-3">
+                <div class="card border-0 shadow-sm">
+                    <div class="card-body text-center">
+                        <i class="bi bi-check-circle fs-1 text-success mb-2"></i>
+                        <h6 class="text-muted">المكتملة</h6>
+                        <h2 class="fw-bold text-success">@stats.CompletedCount</h2>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-3">
+                <div class="card border-0 shadow-sm">
+                    <div class="card-body text-center">
+                        <i class="bi bi-hourglass-split fs-1 text-warning mb-2"></i>
+                        <h6 class="text-muted">قيد التنفيذ</h6>
+                        <h2 class="fw-bold text-warning">@stats.PendingCount</h2>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-3">
+                <div class="card border-0 shadow-sm">
+                    <div class="card-body text-center">
+                        <i class="bi bi-exclamation-triangle fs-1 text-danger mb-2"></i>
+                        <h6 class="text-muted">متأخرة</h6>
+                        <h2 class="fw-bold text-danger">@stats.OverdueCount</h2>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Completion Progress -->
+        <div class="row mb-4">
+            <div class="col-12">
+                <div class="card border-0 shadow-sm">
+                    <div class="card-body">
+                        <h5 class="card-title mb-4">نسبة الإنجاز الكلية</h5>
+                        <div class="d-flex justify-content-between mb-2">
+                            <span>التقدم</span>
+                            <span class="fw-bold">@stats.CompletionPercentage.ToString("F1")%</span>
+                        </div>
+                        <div class="progress" style="height: 30px;">
+                            <div class="progress-bar bg-success progress-bar-striped progress-bar-animated" 
+                                 role="progressbar"
+                                 style="width: @stats.CompletionPercentage%"
+                                 aria-valuenow="@stats.CompletionPercentage" 
+                                 aria-valuemin="0" 
+                                 aria-valuemax="100">
+                                @stats.CompletionPercentage.ToString("F1")%
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Priority Distribution -->
+        @if (stats.ByPriority.Any())
+        {
+            <div class="row mb-4">
+                <div class="col-md-6">
+                    <div class="card border-0 shadow-sm">
+                        <div class="card-body">
+                            <h5 class="card-title mb-4">التوزيع حسب الأولوية</h5>
+                            @foreach (var item in stats.ByPriority.OrderByDescending(x => x.Key))
+                            {
+                                var percentage = stats.TotalCount > 0 ? (double)item.Value / stats.TotalCount * 100 : 0;
+                                <div class="mb-3">
+                                    <div class="d-flex justify-content-between mb-1">
+                                        <span>@GetPriorityText((int)item.Key)</span>
+                                        <span class="fw-bold">@item.Value (@percentage.ToString("F0")%)</span>
+                                    </div>
+                                    <div class="progress" style="height: 20px;">
+                                        <div class="progress-bar @GetPriorityProgressClass((int)item.Key)" 
+                                             role="progressbar"
+                                             style="width: @percentage%">
+                                        </div>
+                                    </div>
+                                </div>
+                            }
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Category Distribution -->
+                <div class="col-md-6">
+                    <div class="card border-0 shadow-sm">
+                        <div class="card-body">
+                            <h5 class="card-title mb-4">التوزيع حسب التصنيف</h5>
+                            @if (stats.ByCategory.Any())
+                            {
+                                @foreach (var item in stats.ByCategory.OrderByDescending(x => x.Value).Take(5))
+                                {
+                                    var percentage = stats.TotalCount > 0 ? (double)item.Value / stats.TotalCount * 100 : 0;
+                                    <div class="mb-3">
+                                        <div class="d-flex justify-content-between mb-1">
+                                            <span>@item.Key</span>
+                                            <span class="fw-bold">@item.Value (@percentage.ToString("F0")%)</span>
+                                        </div>
+                                        <div class="progress" style="height: 20px;">
+                                            <div class="progress-bar bg-info" 
+                                                 role="progressbar"
+                                                 style="width: @percentage%">
+                                            </div>
+                                        </div>
+                                    </div>
+                                }
+                            }
+                            else
+                            {
+                                <p class="text-muted text-center">لا توجد تصنيفات</p>
+                            }
+                        </div>
+                    </div>
+                </div>
+            </div>
+        }
+
+        <!-- Summary Table -->
+        <div class="row">
+            <div class="col-12">
+                <div class="card border-0 shadow-sm">
+                    <div class="card-body">
+                        <h5 class="card-title mb-4">ملخص الإحصائيات</h5>
+                        <div class="table-responsive">
+                            <table class="table table-hover">
+                                <thead>
+                                    <tr>
+                                        <th>المقياس</th>
+                                        <th class="text-end">القيمة</th>
+                                        <th class="text-end">النسبة</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    <tr>
+                                        <td><i class="bi bi-list-ul text-primary me-2"></i>إجمالي المهام</td>
+                                        <td class="text-end fw-bold">@stats.TotalCount</td>
+                                        <td class="text-end">100%</td>
+                                    </tr>
+                                    <tr>
+                                        <td><i class="bi bi-check-circle text-success me-2"></i>المهام المكتملة</td>
+                                        <td class="text-end fw-bold">@stats.CompletedCount</td>
+                                        <td class="text-end">@stats.CompletionPercentage.ToString("F1")%</td>
+                                    </tr>
+                                    <tr>
+                                        <td><i class="bi bi-hourglass-split text-warning me-2"></i>المهام قيد التنفيذ</td>
+                                        <td class="text-end fw-bold">@stats.PendingCount</td>
+                                        <td class="text-end">@((stats.TotalCount > 0 ? (double)stats.PendingCount / stats.TotalCount * 100 : 0).ToString("F1"))%</td>
+                                    </tr>
+                                    <tr>
+                                        <td><i class="bi bi-exclamation-triangle text-danger me-2"></i>المهام المتأخرة</td>
+                                        <td class="text-end fw-bold">@stats.OverdueCount</td>
+                                        <td class="text-end">@((stats.TotalCount > 0 ? (double)stats.OverdueCount / stats.TotalCount * 100 : 0).ToString("F1"))%</td>
+                                    </tr>
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    }
+</div>
+
+@code {
+    private TodoStatsDto? stats;
+    private bool isLoading = true;
+
+    protected override async Task OnInitializedAsync()
+    {
+        await LoadStats();
+    }
+
+    private async Task LoadStats()
+    {
+        try
+        {
+            isLoading = true;
+            stats = await TodoApi.GetStatsAsync();
+        }
+        catch (Exception ex)
+        {
+            Logger.LogError(ex, "Error loading statistics");
+        }
+        finally
+        {
+            isLoading = false;
+        }
+    }
+
+    private string GetPriorityText(int priority) => priority switch
+    {
+        1 => "منخفضة",
+        2 => "متوسطة",
+        3 => "عالية",
+        4 => "عاجلة",
+        _ => "غير محدد"
+    };
+
+    private string GetPriorityProgressClass(int priority) => priority switch
+    {
+        4 => "bg-danger",
+        3 => "bg-warning",
+        2 => "bg-info",
+        1 => "bg-secondary",
+        _ => "bg-secondary"
+    };
+}
