@@ -4,7 +4,7 @@ using Microsoft.Extensions.DependencyInjection;
 using TodoBlazorApp.Domain.Interfaces;
 using TodoBlazorApp.Infrastructure.Data;
 using TodoBlazorApp.Infrastructure.Repositories;
-using TodoBlazorApp.Infrastructure.Services;
+using Microsoft.AspNetCore.Http; // <-- Add this using directive
 
 namespace TodoBlazorApp.Infrastructure;
 
@@ -19,9 +19,10 @@ public static class DependencyInjection
         {
             var connectionString = configuration.GetConnectionString("DefaultConnection");
             options.UseSqlite(connectionString);
-            
+
+            var vv = configuration.GetSection("Database:EnableSensitiveDataLogging");
             // Enable for development only
-            if (configuration.GetValue<bool>("Database:EnableSensitiveDataLogging"))
+            if (vv != null && vv.Value == "true")
             {
                 options.EnableSensitiveDataLogging();
             }

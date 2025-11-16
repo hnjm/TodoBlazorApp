@@ -19,12 +19,12 @@ public class CurrentUserService : ICurrentUserService
     }
 
     public string? UserId =>
-        _httpContextAccessor.HttpContext?.User?.FindFirstValue(ClaimTypes.NameIdentifier)
-        ?? _httpContextAccessor.HttpContext?.User?.FindFirstValue("sub")
+        _httpContextAccessor.HttpContext?.User?.FindFirst(ClaimTypes.NameIdentifier)?.Value
+        ?? _httpContextAccessor.HttpContext?.User?.FindFirst("sub")?.Value
         ?? "hnjm";
 
     public string? UserName =>
-        _httpContextAccessor.HttpContext?.User?.FindFirstValue(ClaimTypes.Name)
-        ?? _httpContextAccessor.HttpContext?.User?.FindFirstValue("name")
+        _httpContextAccessor.HttpContext?.User?.FindFirst(ClaimTypes.Name)?.Value
+        ?? _httpContextAccessor.HttpContext?.User?.FindFirst("name")?.Value
         ?? "hnjm";
 }
