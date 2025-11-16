@@ -1,3 +1,5 @@
+using TodoBlazorApp.Domain.Entities;
+
 namespace TodoBlazorApp.Domain.Interfaces;
 
 public interface IUnitOfWork : IDisposable

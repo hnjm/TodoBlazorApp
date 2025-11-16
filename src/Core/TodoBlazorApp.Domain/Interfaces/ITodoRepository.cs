@@ -1,4 +1,5 @@
 using TodoBlazorApp.Domain.Entities;
+using TodoBlazorApp.Domain.Enums;
 
 namespace TodoBlazorApp.Domain.Interfaces;
 
