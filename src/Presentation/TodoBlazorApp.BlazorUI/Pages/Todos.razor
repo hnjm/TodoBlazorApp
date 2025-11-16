@@ -1,4 +1,6 @@
 @page "/todos"
+@using Microsoft.AspNetCore.Components.Web
+@using Microsoft.JSInterop
 @using TodoBlazorApp.Application.DTOs
 @using TodoBlazorApp.Domain.Enums
 @using TodoBlazorApp.BlazorUI.Services
@@ -310,11 +312,11 @@
                             <input type="text" class="form-control" @bind="currentCategory"
                                    placeholder="مثال: عمل، دراسة" list="categories" />
                             <datalist id="categories">
-                                <option value="تطوير">
-                                <option value="تصميم">
-                                <option value="اختبار">
-                                <option value="DevOps">
-                                <option value="تعليم">
+                                <option value="تطوير"></option>
+                                <option value="تصميم"></option>
+                                <option value="اختبار"></option>
+                                <option value="DevOps"></option>
+                                <option value="تعليم"></option>
                             </datalist>
                         </div>
 
